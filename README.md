@@ -4,12 +4,9 @@ It's magic!
 
 <details>
     <summary>Click to see more</summary>
-    <!-- MarkdownTOC -->
+<!-- MarkdownTOC -->
 
 - [Quick start](#quick-start)
-- [Document](#document)
-- [Changelog](#changelog)
-    - [v0.0.0_000000_alpha](#v000_000000_alpha)
 - [TODO](#todo)
 - [Inspire By](#inspire-by)
 
@@ -25,10 +22,11 @@ This project is divided into a `main` branch and a `dev` branch. The `main` bran
 
 ## TODO
 - [x] segmentation
-- [] vae
-- [] gan
+- [ ] vae
+- [ ] gan
 
 ## Inspire By
 
 [https://github.com/chuzcjoe/PSPnet-Pytorch](https://github.com/chuzcjoe/PSPnet-Pytorch)
+
 [https://github.com/podgorskiy/VAE](https://github.com/podgorskiy/VAE)

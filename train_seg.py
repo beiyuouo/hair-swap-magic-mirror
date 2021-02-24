@@ -1,10 +1,11 @@
 # Author: BeiYu
 # Github: https://github.com/beiyuouo
-# Date  : 2021/2/22 10:04
+# Date  : 2021/2/21 21:57
 # Description:
 
 __author__ = "BeiYu"
 
+from utils.init_env import set_seed
 from utils.options import *
 
 import os
@@ -15,14 +16,12 @@ from torch import optim
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from modules.dataset import *
+from modules.seg_dataset import *
 from tqdm import tqdm
 import click
 import torch.nn.functional as F
 import numpy as np
-from modules.segmentation import PSPNet
-import torchvision.transforms.functional as ff
-
+from modules.seg import PSPNet
 
 models = {
     'squeezenet': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='squeezenet'),
@@ -49,47 +48,14 @@ def build_network(snapshot, backend):
     return net, epoch
 
 
-def get_img(data_path, path, save_path=None):
-    img_file = path
-    img_path = os.path.join(data_path, img_file).replace("\\", "/")
-    img = Image.open(img_path).convert("RGB")
-    crop_size = (296, 280)
-    img = ff.center_crop(img, crop_size)
-    if save_path:
-        img.save(save_path)
-    img.show()
-    transform_img = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ]
-    )
-
-    img = transform_img(img)
-    return img
-
-
-colormap = [[0, 0, 0],[255, 0, 0],[0, 255, 0],[255, 255, 0],[128, 128, 128],[0, 0, 255],[255, 0, 255],[0, 255, 255],[255, 255, 255]]
-
-cm = np.array(colormap).astype('uint8')
-
-
-def recover_img(out, result_path):
-    pre_label = out.max(1)[1].squeeze().cpu().data.numpy()
-    pre_label = np.asarray(pre_label, dtype=np.uint8)
-    pre = cm[pre_label]
-    pre_img = Image.fromarray(pre.astype("uint8"), mode='RGB')
-    pre_img.save(result_path)
-    pre_img.show()
-
-
-def test():
+def train():
     args = get_args()
     # os.environ["CUDA_VISIBLE_DEVICES"] = gpu
     # net, starting_epoch = build_network(snapshot, backend)
     # data_path = os.path.abspath(os.path.expanduser(data_path))
     # models_path = os.path.abspath(os.path.expanduser(models_path))
     os.makedirs(args.model_path, exist_ok=True)
+    set_seed(args.seed)
 
     '''
         To follow this training routine you need a DataLoader that yields the tuples of the following format:
@@ -99,25 +65,46 @@ def test():
         y_cls - batch of 1D tensors of dimensionality N: N total number of classes, 
         y_cls[i, T] = 1 if class T is present in image i, 0 otherwise
     '''
+    traindata = HeadSegData(args.seg_data_path, args.trainxml, train=True, crop_size=(args.seg_crop_x, args.seg_crop_y))
+    train_loader = DataLoader(traindata, batch_size=args.seg_batch_size, shuffle=True, num_workers=1)
 
-    net, _ = build_network(None, args.backend)
-    net.load_state_dict(torch.load(os.path.join(args.model_path, '19.pth')))
+    net, _ = build_network(None, args.seg_backend)
+    seg_criterion = nn.NLLLoss().cuda(0)
+    cls_criterion = nn.BCEWithLogitsLoss().cuda(0)
+    optimizer = optim.Adam(net.parameters(), lr=args.seg_lr)
     # scheduler = MultiStepLR(optimizer, milestones=[int(x) for x in milestones.split(',')])
 
-    print("start testing...")
-    net.eval()
+    print("start training...")
+    net.train()
+    total_loss = 0.0
+    for epoch in range(args.seg_epochs):
+        if (epoch+1) % 5 == 0:
+            for group in optimizer.param_groups:
+                group['lr'] *= 0.25
 
-    img_name = '10696954214_ee49a7428f_o_scaled_scaled.jpg'
-    img_name = '10933518394_003d1613a7_o_scaled.jpg'
-    path = os.path.join('real_photos', img_name)
-    x = get_img(args.data_path, path, os.path.join(args.result_path, img_name))
-    x = x.reshape(1, x.shape[0], x.shape[1], x.shape[2])
-    x = x.cuda(0)
-    out, out_cls = net(x)
-    # print(out)
-    recover_img(out, os.path.join(args.result_path, 'pred_'+img_name))
-    print(out_cls.cpu().data.numpy())
+        for i, (x, y, y_cls) in enumerate(train_loader):
+            x, y, y_cls = x.cuda(0), y.cuda(0).long(), y_cls.cuda(0).float()
+
+            out, out_cls = net(x)
+            seg_loss = seg_criterion(out, y)
+            cls_loss = cls_criterion(out_cls, y_cls)
+            loss = seg_loss + args.seg_alpha * cls_loss
+            total_loss += loss.item()
+
+            if i % 50 == 0:
+                status = '[batch:{0}/{1} epoch:{2}] loss = {3:0.5f}'.format(i, len(traindata) // args.seg_batch_size,
+                                                                            epoch + 1,
+                                                                            loss.item())
+                print(status)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        torch.save(net.state_dict(), os.path.join(args.model_path,
+                                                  f'{"seg"}_{args.seg_model}_{args.seg_backend}_{epoch}.pth'))
+        print(f'epoch:{epoch} total_loss: {total_loss / len(traindata)}')
 
 
 if __name__ == '__main__':
-    test()
+    train()

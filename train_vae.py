@@ -5,7 +5,6 @@
 
 __author__ = "BeiYu"
 
-
 import torch.utils.data
 from scipy import misc
 from torch import optim
@@ -16,8 +15,11 @@ import pickle
 import time
 import random
 import os
-from dlutils import batch_provider
-from dlutils.pytorch.cuda_helper import *
+
+from modules.vae_dataset import HeadVaeData
+from utils.init_env import set_seed
+from utils.options import *
+from torch.utils.data import DataLoader
 
 im_size = 128
 
@@ -41,91 +43,85 @@ def process_batch(batch):
     return x
 
 
-def main():
-    batch_size = 128
-    z_size = 512
-    vae = VAE(zsize=z_size, layer_count=5)
-    vae.cuda()
-    vae.train()
-    vae.weight_init(mean=0, std=0.02)
+def train():
+    args = get_args()
+    set_seed(args.seed)
 
-    lr = 0.0005
+    traindata = HeadVaeData(args.vae_data_path, args.trainxml)
+    train_loader = DataLoader(traindata, batch_size=args.vae_batch_size, shuffle=True, num_workers=1)
 
-    vae_optimizer = optim.Adam(vae.parameters(), lr=lr, betas=(0.5, 0.999), weight_decay=1e-5)
+    # print(traindata[0])
 
-    train_epoch = 40
+    f_vae = VAE(zsize=args.vae_zsize, layer_count=5)
+    f_vae.cuda()
+    f_vae.train()
+    f_vae.weight_init(mean=0, std=0.02)
 
-    sample1 = torch.randn(128, z_size).view(-1, z_size, 1, 1)
+    f_vae_optimizer = optim.Adam(f_vae.parameters(), lr=args.vae_lr, betas=(0.5, 0.999), weight_decay=1e-5)
+    f_vae.train()
 
-    for epoch in range(train_epoch):
-        vae.train()
+    h_vae = VAE(zsize=args.vae_zsize, layer_count=5)
+    h_vae.cuda()
+    h_vae.train()
+    h_vae.weight_init(mean=0, std=0.02)
 
-        with open('data_fold_%d.pkl' % (epoch % 5), 'rb') as pkl:
-            data_train = pickle.load(pkl)
+    h_vae_optimizer = optim.Adam(h_vae.parameters(), lr=args.vae_lr, betas=(0.5, 0.999), weight_decay=1e-5)
+    h_vae.train()
 
-        print("Train set size:", len(data_train))
+    sample1 = torch.randn(128, args.vae_zsize).view(-1, args.vae_zsize, 1, 1)
 
-        random.shuffle(data_train)
+    print('Start training...')
 
-        batches = batch_provider(data_train, batch_size, process_batch, report_progress=True)
-
-        rec_loss = 0
-        kl_loss = 0
-
-        epoch_start_time = time.time()
-
+    for epoch in range(args.vae_epochs):
         if (epoch + 1) % 8 == 0:
-            vae_optimizer.param_groups[0]['lr'] /= 4
-            print("learning rate change!")
+            for group in f_vae_optimizer.param_groups:
+                group['lr'] *= 0.25
 
-        i = 0
-        for x in batches:
-            vae.train()
-            vae.zero_grad()
-            rec, mu, logvar = vae(x)
+            for group in h_vae_optimizer.param_groups:
+                group['lr'] *= 0.25
 
-            loss_re, loss_kl = loss_function(rec, x, mu, logvar)
+        f_rec_loss, h_rec_loss = 0, 0
+        f_kl_loss, h_kl_loss = 0, 0
+
+        for idx, (f_x, h_x) in enumerate(train_loader):
+            f_x, h_x = f_x.cuda(), h_x.cuda()
+
+            f_vae.zero_grad()
+            rec, mu, logvar = f_vae(f_x)
+
+            loss_re, loss_kl = loss_function(rec, f_x, mu, logvar)
             (loss_re + loss_kl).backward()
-            vae_optimizer.step()
-            rec_loss += loss_re.item()
-            kl_loss += loss_kl.item()
+            f_vae_optimizer.step()
+            f_rec_loss += loss_re.item()
+            f_kl_loss += loss_kl.item()
+            f_loss = (loss_re.item() + loss_kl.item()) / len(f_x)
 
-            #############################################
+            h_vae.zero_grad()
+            rec, mu, logvar = h_vae(h_x)
 
-            os.makedirs('results_rec', exist_ok=True)
-            os.makedirs('results_gen', exist_ok=True)
+            loss_re, loss_kl = loss_function(rec, h_x, mu, logvar)
+            (loss_re + loss_kl).backward()
+            h_vae_optimizer.step()
+            h_rec_loss += loss_re.item()
+            h_kl_loss += loss_kl.item()
+            h_loss = (loss_re.item() + loss_kl.item()) / len(h_x)
 
-            epoch_end_time = time.time()
-            per_epoch_ptime = epoch_end_time - epoch_start_time
+            if (idx + 1) % 50 == 0:
+                print(f'epoch: [{epoch}/{args.vae_epochs}] batch: [{idx}/{len(traindata) // args.vae_batch_size}] '
+                      f'f_loss: {f_loss}, h_loss: {h_loss}')
 
-            # report losses and save samples each 60 iterations
-            m = 60
-            i += 1
-            if i % m == 0:
-                rec_loss /= m
-                kl_loss /= m
-                print('\n[%d/%d] - ptime: %.2f, rec loss: %.9f, KL loss: %.9f' % (
-                    (epoch + 1), train_epoch, per_epoch_ptime, rec_loss, kl_loss))
-                rec_loss = 0
-                kl_loss = 0
-                with torch.no_grad():
-                    vae.eval()
-                    x_rec, _, _ = vae(x)
-                    resultsample = torch.cat([x, x_rec]) * 0.5 + 0.5
-                    resultsample = resultsample.cpu()
-                    save_image(resultsample.view(-1, 3, im_size, im_size),
-                               'results_rec/sample_' + str(epoch) + "_" + str(i) + '.png')
-                    x_rec = vae.decode(sample1)
-                    resultsample = x_rec * 0.5 + 0.5
-                    resultsample = resultsample.cpu()
-                    save_image(resultsample.view(-1, 3, im_size, im_size),
-                               'results_gen/sample_' + str(epoch) + "_" + str(i) + '.png')
+        f_loss = (f_kl_loss + f_rec_loss) / len(traindata)
+        h_loss = (h_kl_loss + h_rec_loss) / len(traindata)
 
-        del batches
-        del data_train
-    print("Training finish!... save training results")
-    torch.save(vae.state_dict(), "VAEmodel.pkl")
+        torch.save(f_vae.state_dict(), os.path.join(args.model_path,
+                                                    f'{"f_vae"}_{args.vae_zsize}_{epoch}.pth'))
+        torch.save(h_vae.state_dict(), os.path.join(args.model_path,
+                                                    f'{"h_vae"}_{args.vae_zsize}_{epoch}.pth'))
+
+        print(f'epoch: {epoch}, f_loss: {f_loss}, h_loss: {h_loss}, '
+              f'f_rec_loss: {f_rec_loss / len(traindata)}, f_kl_loss: {f_kl_loss / len(traindata)}, '
+              f'h_rec_loss: {h_rec_loss / len(traindata)}, h_kl_loss: {h_kl_loss / len(traindata)}')
 
 
 if __name__ == '__main__':
-    main()
+    train()

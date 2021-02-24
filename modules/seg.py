@@ -9,7 +9,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-import modules.extractor2
+import modules.seg_extractor2
 
 
 class PSPModule(nn.Module):
@@ -52,7 +52,7 @@ class PSPNet(nn.Module):
     def __init__(self, n_classes=9, sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet34',
                  pretrained=True):
         super().__init__()
-        self.feats = getattr(modules.extractor2, backend)(pretrained)
+        self.feats = getattr(modules.seg_extractor2, backend)(pretrained)
         self.psp = PSPModule(psp_size, 1024, sizes)
         self.drop_1 = nn.Dropout2d(p=0.3)
 

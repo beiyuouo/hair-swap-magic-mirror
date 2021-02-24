@@ -27,3 +27,6 @@ log/*
 data/*
 test/*
 result/*
+seg_data/*
+vae_data/*
+*.npy

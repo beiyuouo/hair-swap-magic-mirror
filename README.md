@@ -8,6 +8,7 @@ It's magic!
 
 - [Quick start](#quick-start)
 - [TODO](#todo)
+- [Dataset](#dataset)
 - [Inspire By](#inspire-by)
 
 <!-- /MarkdownTOC -->
@@ -25,8 +26,12 @@ This project is divided into a `main` branch and a `dev` branch. The `main` bran
 - [ ] vae
 - [ ] gan
 
+## Dataset
+- [face-headsegmentation-dataset](https://www.mut1ny.com/face-headsegmentation-dataset)
+- [LFW, Labeled Faces in the Wild](http://vis-www.cs.umass.edu/lfw/part_labels/)
+- [face-hair-segm-database](http://www.cs.ubbcluj.ro/~dadi/face-hair-segm-database.html)
+
 ## Inspire By
 
-[https://github.com/chuzcjoe/PSPnet-Pytorch](https://github.com/chuzcjoe/PSPnet-Pytorch)
-
-[https://github.com/podgorskiy/VAE](https://github.com/podgorskiy/VAE)
+- [https://github.com/chuzcjoe/PSPnet-Pytorch](https://github.com/chuzcjoe/PSPnet-Pytorch)
+- [https://github.com/podgorskiy/VAE](https://github.com/podgorskiy/VAE)

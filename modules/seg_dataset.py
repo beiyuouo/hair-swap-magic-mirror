@@ -15,7 +15,7 @@ import torchvision
 import cv2
 from torch.utils import data
 import torchvision.transforms.functional as ff
-from modules.augmentation import *
+from modules.seg_augmentation import *
 from torchvision import transforms
 import torch
 
@@ -115,6 +115,15 @@ class HeadSegData(data.Dataset):
 
     def __len__(self):
         return len(self.src)
+
+    def save_to(self, idx, path):
+        img_file = self.src[idx]
+        img_path = os.path.join(self.datadir, img_file).replace("\\", "/")
+        img = Image.open(img_path).convert("RGB")
+        img = ff.center_crop(img, self.crop_size)
+        img.save(path)
+
+        return img
 
     def center_crop(self, img, label, crop_size):
         img = ff.center_crop(img, crop_size)

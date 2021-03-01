@@ -75,6 +75,8 @@ class HeadGanData(data.Dataset):
     def __init__(self, datadir, train=True):
         self.datadir = datadir
         self.train = train
+        self.rgb_mean = np.array([0.485, 0.456, 0.406])
+        self.rgb_std = np.array([0.229, 0.224, 0.225])
 
         # self.p = LabelProcessor()
 
@@ -94,6 +96,13 @@ class HeadGanData(data.Dataset):
 
     def __len__(self):
         return len(os.listdir(self.datadir)) // 2
+
+    def inv_transform(self, img_tensor):
+        inv_normalize = torchvision.transforms.Normalize(
+            mean= -self.rgb_mean / self.rgb_std,
+            std=1 / self.rgb_std)
+        to_PIL_image = torchvision.transforms.ToPILImage()
+        return to_PIL_image(inv_normalize(img_tensor[0].cpu()).clamp(0, 1))
 
     def img_transform(self, img, label, index):
         label = np.array(label)

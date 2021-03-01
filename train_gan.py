@@ -103,9 +103,13 @@ def train():
 
             if (i + 1) % 50 == 0:
                 print(f'Epoch: [{epoch}/{args.gan_epochs}] batch: [{i}/{len(traindata) // args.gan_batch_size}] '
-                      f'loss_D: {loss_D.item()}, loss_G: {loss_G.item()}')
+                      f'loss_D: {loss_D.item() / minibs}, loss_G: {loss_G.item() / minibs}')
 
-        print(f'Epoch {epoch}: -> loss_G: {total_loss_G}, loss_D: {total_loss_D}')
+        torch.save(G.state_dict(), os.path.join(args.model_path,
+                                                f'{"G"}_{epoch}.pth'))
+        torch.save(D.state_dict(), os.path.join(args.model_path,
+                                                f'{"D"}_{epoch}.pth'))
+        print(f'Epoch {epoch}: -> loss_G: {total_loss_G / len(traindata)}, loss_D: {total_loss_D / len(traindata)}')
 
 
 if __name__ == '__main__':

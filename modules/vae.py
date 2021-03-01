@@ -12,13 +12,12 @@ from torch.nn import functional as F
 
 
 class VAE(nn.Module):
-    def __init__(self, zsize, layer_count=3, channels=3):
+    def __init__(self, zsize, layer_count=3, channels=3, training=True, d=128):
         super(VAE, self).__init__()
 
-        d = 128
         self.d = d
         self.zsize = zsize
-
+        self.training = training
         self.layer_count = layer_count
 
         mul = 1
@@ -62,6 +61,14 @@ class VAE(nn.Module):
             return eps.mul(std).add_(mu)
         else:
             return mu
+
+    def get_z(self, x):
+        mu, logvar = self.encode(x)
+        mu = mu.squeeze()
+        logvar = logvar.squeeze()
+        z = self.reparameterize(mu, logvar)
+        z.view(-1, self.zsize, 1, 1)
+        return z
 
     def decode(self, x):
         x = x.view(x.shape[0], self.zsize)

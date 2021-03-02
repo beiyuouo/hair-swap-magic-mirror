@@ -18,13 +18,17 @@ It's magic!
 # :wave: Hi
 This project is divided into a `main` branch and a `dev` branch. The `main` branch contains a relatively stable version, and the `dev` branch is the content under development.
 
+This branch is `v1.0.0_20210302_alpha`.
+
+Solution: [shimo doc](https://shimo.im/docs/jQQ8Ttr9Hg8TGHhV/)
+
 ## Quick start
 - `pip install -r requirements.txt`
 
 ## TODO
 - [x] segmentation
 - [x] vae
-- [ ] gan
+- [x] gan
 
 ## Dataset
 - [face-headsegmentation-dataset](https://www.mut1ny.com/face-headsegmentation-dataset)

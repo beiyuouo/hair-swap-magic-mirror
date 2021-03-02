@@ -23,7 +23,7 @@ This project is divided into a `main` branch and a `dev` branch. The `main` bran
 
 ## TODO
 - [x] segmentation
-- [ ] vae
+- [x] vae
 - [ ] gan
 
 ## Dataset
@@ -35,3 +35,4 @@ This project is divided into a `main` branch and a `dev` branch. The `main` bran
 
 - [https://github.com/chuzcjoe/PSPnet-Pytorch](https://github.com/chuzcjoe/PSPnet-Pytorch)
 - [https://github.com/podgorskiy/VAE](https://github.com/podgorskiy/VAE)
+- [https://github.com/eriklindernoren/PyTorch-GAN#stargan](https://github.com/eriklindernoren/PyTorch-GAN#stargan)

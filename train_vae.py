@@ -21,8 +21,6 @@ from utils.init_env import set_seed
 from utils.options import *
 from torch.utils.data import DataLoader
 
-im_size = 128
-
 
 def loss_function(recon_x, x, mu, logvar):
     BCE = torch.mean((recon_x - x) ** 2)
@@ -33,14 +31,6 @@ def loss_function(recon_x, x, mu, logvar):
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.mean(torch.mean(1 + logvar - mu.pow(2) - logvar.exp(), 1))
     return BCE, KLD * 0.1
-
-
-def process_batch(batch):
-    data = [misc.imresize(x, [im_size, im_size]).transpose((2, 0, 1)) for x in batch]
-
-    x = torch.from_numpy(np.asarray(data, dtype=np.float32)).cuda() / 127.5 - 1.
-    x = x.view(-1, 3, im_size, im_size)
-    return x
 
 
 def train():

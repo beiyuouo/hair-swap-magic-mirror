@@ -109,11 +109,11 @@ class HeadVaeData(data.Dataset):
         )
 
         hair_mask = np.zeros(mask.shape, dtype=np.uint8)
-        hair_mask[mask == g_label_hair] = 255
+        hair_mask[mask == g_label_hair] = 0
         img_h = self.overlay_mask_with_color(img, hair_mask, g_hair_color_display)
 
         skin_mask = np.zeros(mask.shape, dtype=np.uint8)
-        skin_mask[mask == g_label_face] = 255
+        skin_mask[mask == g_label_face] = 0
         img_f = self.overlay_mask_with_color(img, skin_mask, g_skin_color_display)
 
         img, img_f, img_h = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)), \

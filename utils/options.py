@@ -30,8 +30,8 @@ def get_args():
     args.add_argument('--vae_batch_size', type=int, default=16, help="batch size")
     args.add_argument('--vae_data_path', type=str, default='./seg_data', help='path to dataset')
     args.add_argument('--vae_zsize', type=int, default=256, help='Vertical random crop size')
-    args.add_argument('--vae_flr', type=float, default=0.0001, help="vae face learning rate")
-    args.add_argument('--vae_hlr', type=float, default=0.00005, help="vae hair learning rate")
+    args.add_argument('--vae_flr', type=float, default=0.0005, help="vae face learning rate")
+    args.add_argument('--vae_hlr', type=float, default=0.0001, help="vae hair learning rate")
 
     args.add_argument('--gan_epochs', type=int, default=50, help="epochs of training")
     args.add_argument('--gan_batch_size', type=int, default=4, help="batch size")

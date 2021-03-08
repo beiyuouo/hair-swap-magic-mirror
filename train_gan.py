@@ -57,8 +57,8 @@ def train():
 
     criterion_D = F.binary_cross_entropy_with_logits
     criterion_G = nn.L1Loss()
-    optimizer_G = torch.optim.Adam(G.parameters(), lr=args.gan_lr, betas=(args.gan_beta, 0.999))
-    optimizer_D = torch.optim.Adam(D.parameters(), lr=args.gan_lr, betas=(args.gan_beta, 0.999))
+    optimizer_G = torch.optim.Adam(G.parameters(), lr=args.gan_glr, betas=(args.gan_beta, 0.999))
+    optimizer_D = torch.optim.Adam(D.parameters(), lr=args.gan_dlr, betas=(args.gan_beta, 0.999))
 
     real_ = 1
     fake_ = 0

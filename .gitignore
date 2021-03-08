@@ -30,3 +30,7 @@ result/*
 seg_data/*
 vae_data/*
 *.npy
+seg_result/*
+vae_result/*
+gan_result/*
+

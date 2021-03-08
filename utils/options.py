@@ -37,7 +37,8 @@ def get_args():
     args.add_argument('--gan_batch_size', type=int, default=4, help="batch size")
     args.add_argument('--gan_data_path', type=str, default='./seg_data', help='path to dataset')
     args.add_argument('--gan_zsize', type=int, default=256, help='Vertical random crop size')
-    args.add_argument('--gan_lr', type=float, default=0.0005, help="learning rate")
+    args.add_argument('--gan_glr', type=float, default=0.001, help="learning rate")
+    args.add_argument('--gan_dlr', type=float, default=0.00005, help="learning rate")
     args.add_argument('--gan_beta', type=float, default=0.5, help="betas")
 
     args = args.parse_args()

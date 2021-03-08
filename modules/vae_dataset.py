@@ -96,6 +96,8 @@ class HeadVaeData(data.Dataset):
         color_img[:, :] = img[:, :]
 
         color_mask = cv2.bitwise_and(color_img, color_img, mask=seg_mask)
+        # print(color_mask[0][0])
+        color_mask[seg_mask != 255] = [255, 255, 255]
         # display_image = cv2.addWeighted(color_mask, 0.3, img, 0.7, 0)
         return color_mask
 
@@ -109,11 +111,11 @@ class HeadVaeData(data.Dataset):
         )
 
         hair_mask = np.zeros(mask.shape, dtype=np.uint8)
-        hair_mask[mask == g_label_hair] = 0
+        hair_mask[mask == g_label_hair] = 255
         img_h = self.overlay_mask_with_color(img, hair_mask, g_hair_color_display)
 
         skin_mask = np.zeros(mask.shape, dtype=np.uint8)
-        skin_mask[mask == g_label_face] = 0
+        skin_mask[mask == g_label_face] = 255
         img_f = self.overlay_mask_with_color(img, skin_mask, g_skin_color_display)
 
         img, img_f, img_h = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)), \

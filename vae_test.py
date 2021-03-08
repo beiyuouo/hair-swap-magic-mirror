@@ -46,11 +46,11 @@ def train():
     f_vae = VAE(zsize=args.vae_zsize, layer_count=5)
     f_vae.cuda()
     f_vae.train()
-    f_vae.load_state_dict(torch.load(os.path.join(args.model_path, 'f_vae_256_19.pth')))
+    f_vae.load_state_dict(torch.load(os.path.join(args.model_path, 'f_vae_256_49.pth')))
 
     h_vae = VAE(zsize=args.vae_zsize, layer_count=5)
     h_vae.cuda()
-    h_vae.load_state_dict(torch.load(os.path.join(args.model_path, 'h_vae_256_19.pth')))
+    h_vae.load_state_dict(torch.load(os.path.join(args.model_path, 'h_vae_256_49.pth')))
 
     sample1 = torch.randn(128, args.vae_zsize).view(-1, args.vae_zsize, 1, 1)
 
@@ -69,19 +69,19 @@ def train():
         for i in range(minibs):
             img = traindata.inv_transform(f_x[i].view(1, 3, 128, 128)).convert('RGB')
             # print(img.shape)
-            img.save(os.path.join('result', f'f_real_{i+idx}.jpg'))
+            img.save(os.path.join('result', f'{i + idx}_f_real.jpg'))
 
             img = traindata.inv_transform(h_x[i].view(1, 3, 128, 128)).convert('RGB')
             # print(img.shape)
-            img.save(os.path.join('result', f'h_real_{i + idx}.jpg'))
+            img.save(os.path.join('result', f'{i + idx}_h_real.jpg'))
 
             img = traindata.inv_transform(f_rec[i].view(1, 3, 128, 128)).convert('RGB')
             # print(img.shape)
-            img.save(os.path.join('result', f'f_fake_{i + idx}.jpg'))
+            img.save(os.path.join('result', f'{i + idx}_f_fake.jpg'))
 
             img = traindata.inv_transform(h_rec[i].view(1, 3, 128, 128)).convert('RGB')
             # print(img.shape)
-            img.save(os.path.join('result', f'h_fake_{i + idx}.jpg'))
+            img.save(os.path.join('result', f'{i + idx}_h_fake.jpg'))
 
         if (idx + 1) % 50 == 0:
             print(f'batch: [{idx}/{len(traindata)}]')

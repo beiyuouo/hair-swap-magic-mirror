@@ -37,7 +37,7 @@ def train():
     args = get_args()
     set_seed(args.seed)
 
-    traindata = HeadVaeData(args.vae_data_path, args.trainxml)
+    traindata = HeadVaeData(args.vae_data_path, args.train_txt)
     train_loader = DataLoader(traindata, batch_size=args.vae_batch_size, shuffle=True, num_workers=1)
 
     # print(traindata[0])
@@ -47,7 +47,7 @@ def train():
     f_vae.train()
     f_vae.weight_init(mean=0, std=0.02)
 
-    f_vae_optimizer = optim.Adam(f_vae.parameters(), lr=args.vae_lr, betas=(0.5, 0.999), weight_decay=1e-5)
+    f_vae_optimizer = optim.Adam(f_vae.parameters(), lr=args.vae_flr, betas=(0.5, 0.999), weight_decay=1e-7)  # 1e-5
     f_vae.train()
 
     h_vae = VAE(zsize=args.vae_zsize, layer_count=5)
@@ -55,7 +55,7 @@ def train():
     h_vae.train()
     h_vae.weight_init(mean=0, std=0.02)
 
-    h_vae_optimizer = optim.Adam(h_vae.parameters(), lr=args.vae_lr, betas=(0.5, 0.999), weight_decay=1e-5)
+    h_vae_optimizer = optim.Adam(h_vae.parameters(), lr=args.vae_hlr, betas=(0.5, 0.999), weight_decay=1e-7)
     h_vae.train()
 
     sample1 = torch.randn(128, args.vae_zsize).view(-1, args.vae_zsize, 1, 1)
@@ -63,17 +63,11 @@ def train():
     print('Start training...')
 
     for epoch in range(args.vae_epochs):
-        if (epoch + 1) % 8 == 0:
-            for group in f_vae_optimizer.param_groups:
-                group['lr'] *= 0.25
-
-            for group in h_vae_optimizer.param_groups:
-                group['lr'] *= 0.25
 
         f_rec_loss, h_rec_loss = 0, 0
         f_kl_loss, h_kl_loss = 0, 0
 
-        for idx, (f_x, h_x) in enumerate(train_loader):
+        for idx, (x, f_x, h_x) in enumerate(train_loader):
             f_x, h_x = f_x.cuda(), h_x.cuda()
 
             f_vae.zero_grad()

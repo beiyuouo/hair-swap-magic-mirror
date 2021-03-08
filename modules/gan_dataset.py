@@ -19,136 +19,110 @@ from modules.seg_augmentation import *
 from torchvision import transforms
 import torch
 
-import xml.etree.ElementTree as ET
+g_label_face = 128
+g_label_hair = 255
 
-
-class LabelProcessor:
-
-    def __init__(self):
-        self.colormap = [(0, 0, 0),
-                         (255, 0, 0),
-                         (0, 255, 0),
-                         (255, 255, 0),
-                         (128, 128, 128),
-                         (0, 0, 255),
-                         (255, 0, 255),
-                         (0, 255, 255),
-                         (255, 255, 255)]
-
-        self.color2label = self.encode_label_pix(self.colormap)
-
-    @staticmethod
-    def get_dis(x, y):
-        xx, xy, xz = x // 256 // 256, x // 256 % 256, x % 256
-        yx, yy, yz = y // 256 // 256, y // 256 % 256, y % 256
-
-        return (xx - yx) ** 2 + (xy - yy) ** 2 + (xz - yz) ** 2
-
-    def encode_label_pix(self, colormap, cached=True):
-        if cached:
-            cm21b = np.load('cm21b.npy')
-            return cm21b
-        cm2lb = np.zeros(256 ** 3)
-        for i in range(cm2lb.shape[0]):
-            dis = 3 * (256 ** 2)
-            idx = 0
-            for ii, cm in enumerate(colormap):
-                if dis > self.get_dis(i, (cm[0] * 256 + cm[1]) * 256 + cm[2]):
-                    dis = self.get_dis(i, (cm[0] * 256 + cm[1]) * 256 + cm[2])
-                    idx = ii
-            cm2lb[i] = idx
-        np.save('cm21b.npy', cm2lb)
-        return cm2lb
-
-    def encode_label_img(self, img):
-        data = np.array(img, dtype='int32')
-        idx = (data[:, :, 0] * 256 + data[:, :, 1]) * 256 + data[:, :, 2]
-        label = np.array(self.color2label[idx], dtype='int64')
-
-        return label
-
-
-p = LabelProcessor()
+g_hair_color_display = (0, 0, 255)
+g_skin_color_display = (0, 255, 0)
 
 
 class HeadGanData(data.Dataset):
-    def __init__(self, datadir, train=True):
+    def __init__(self, datadir, train_txt='segmentations.txt', crop_size=(218, 178), train=True):
         self.datadir = datadir
+        self.crop_size = crop_size
         self.train = train
-        self.rgb_mean = np.array([0.485, 0.456, 0.406])
-        self.rgb_std = np.array([0.229, 0.224, 0.225])
+        self.train_txt = train_txt
+        self.src = []
+        self.mask = []
+        self.img_dir = os.path.join(datadir, 'data')
+        self.mask_dir = os.path.join(datadir, 'segmentation_masks')
 
-        # self.p = LabelProcessor()
+        self.rgb_mean = np.array([0.5320177, 0.44282365, 0.39255527])
+        self.rgb_std = np.array([0.25269014, 0.23634945, 0.23565148])
+
+        with open(self.train_txt, 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                line = line.strip('\n')
+                self.src.append(line)
+                self.mask.append(line.replace('.jpg', '.bmp'))
 
     def __getitem__(self, index):
-        img_file = f'real_{index}.jpg'
-        label_file = f'pred_{index}.jpg'
+        img_file = self.src[index]
+        mask_file = self.mask[index]
 
-        img_path = os.path.join(self.datadir, img_file).replace("\\", "/")
-        label_path = os.path.join(self.datadir, label_file).replace("\\", "/")
+        img_path = os.path.join(self.img_dir, img_file).replace("\\", "/")
+        mask_path = os.path.join(self.mask_dir, mask_file).replace("\\", "/")
 
-        img = Image.open(img_path).convert("RGB")
-        label = Image.open(label_path).convert("RGB")
+        img = cv2.imread(img_path)
+        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
 
-        f_img, h_img, a_img = self.img_transform(img, label, index)
+        # img, mask = self.center_crop(img, mask, self.crop_size)
 
-        return f_img, h_img, a_img
+        img, img_f, img_h = self.img_transform(img, mask, index)
+        # print(mask.shape)
+
+        return img, img_f, img_h
 
     def __len__(self):
-        return len(os.listdir(self.datadir)) // 2
+        return len(self.src)
+
+    def save_to(self, idx, path):
+        img_file = self.src[idx]
+        img_path = os.path.join(self.img_dir, img_file).replace("\\", "/")
+        img = Image.open(img_path).convert("RGB")
+        img = transforms.Resize((128, 128))(img)
+        # img = ff.center_crop(img, self.crop_size)
+        img.save(path)
+
+        return img
+
+    def center_crop(self, img, mask, crop_size):
+        img = ff.center_crop(img, crop_size)
+        mask = ff.center_crop(mask, crop_size)
+
+        return img, mask
+
+    def overlay_mask_with_color(self, img, seg_mask, color):
+        color_img = np.zeros(img.shape, img.dtype)
+        color_img[:, :] = img[:, :]
+
+        color_mask = cv2.bitwise_and(color_img, color_img, mask=seg_mask)
+        # display_image = cv2.addWeighted(color_mask, 0.3, img, 0.7, 0)
+        return color_mask
 
     def inv_transform(self, img_tensor):
         inv_normalize = torchvision.transforms.Normalize(
-            mean= -self.rgb_mean / self.rgb_std,
+            mean=-self.rgb_mean / self.rgb_std,
             std=1 / self.rgb_std)
         to_PIL_image = torchvision.transforms.ToPILImage()
         return to_PIL_image(inv_normalize(img_tensor[0].cpu()).clamp(0, 1))
 
-    def img_transform(self, img, label, index):
-        label = np.array(label)
-
-        label = p.encode_label_img(label)
-
-        mask_h = label[:, :] != 3
-        mask_h = np.expand_dims(mask_h, 2).repeat(3, axis=2)
-
-        mask_f = (label[:, :] == 3) | (label[:, :] == 0)
-        mask_f = np.expand_dims(mask_f, 2).repeat(3, axis=2)
-
-        mask_a = label[:, :] == 0
-        mask_a = np.expand_dims(mask_a, 2).repeat(3, axis=2)
-        # print(mask_f.shape)
-
-        # for i in range(label.shape[0]):
-        #    for j in range(label.shape[1]):
-        #        print(label[i][j], end=' ')
-        #    print('')
-        # print(label.shape)
-
-        f_img, h_img, a_img = np.array(img), np.array(img), np.array(img)
-        f_img[mask_f] = 0
-        h_img[mask_h] = 0
-        a_img[mask_a] = 0
-        # f_img = np.ma.array(img, mask=mask_f)
-        # h_img = np.ma.array(img, mask=mask_h)
-
-        transform_label = transforms.Compose([
-            transforms.ToTensor()]
+    def img_transform(self, img, mask, index):
+        transform_img = transforms.Compose(
+            [
+                transforms.Resize((128, 128)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.5320177, 0.44282365, 0.39255527], std=[0.25269014, 0.23634945, 0.23565148])
+            ]
         )
 
-        transform_img = transforms.Compose([
-            transforms.Resize(128),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        hair_mask = np.zeros(mask.shape, dtype=np.uint8)
+        hair_mask[mask == g_label_hair] = 255
+        img_h = self.overlay_mask_with_color(img, hair_mask, g_hair_color_display)
 
-        ])
+        skin_mask = np.zeros(mask.shape, dtype=np.uint8)
+        skin_mask[mask == g_label_face] = 255
+        img_f = self.overlay_mask_with_color(img, skin_mask, g_skin_color_display)
 
-        # Image.fromarray(f_img).show()
-        # Image.fromarray(h_img).show()
-        # Image.fromarray(a_img).show()
+        img, img_f, img_h = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)), \
+                            Image.fromarray(cv2.cvtColor(img_f, cv2.COLOR_BGR2RGB)), \
+                            Image.fromarray(cv2.cvtColor(img_h, cv2.COLOR_BGR2RGB))
 
-        f_img = transform_img(Image.fromarray(f_img))
-        h_img = transform_img(Image.fromarray(h_img))
-        a_img = transform_img(Image.fromarray(a_img))
+        # img.show()
+        # img_f.show()
+        # img_h.show()
 
-        return f_img, h_img, a_img
+        img, img_f, img_h = transform_img(img), transform_img(img_f), transform_img(img_h)
+
+        return img, img_f, img_h

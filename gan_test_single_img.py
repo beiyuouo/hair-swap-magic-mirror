@@ -31,7 +31,7 @@ def train():
     args.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     set_seed(args.seed)
 
-    traindata = HeadGanData(args.gan_data_path, args.trainxml)
+    traindata = HeadGanData(args.gan_data_path, args.train_txt)
     train_loader = DataLoader(traindata, batch_size=args.gan_batch_size, shuffle=True, num_workers=1)
 
     # print(traindata[0])

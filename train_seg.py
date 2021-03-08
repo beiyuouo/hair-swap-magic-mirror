@@ -24,13 +24,13 @@ import numpy as np
 from modules.seg import PSPNet
 
 models = {
-    'squeezenet': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='squeezenet'),
-    'densenet': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=1024, deep_features_size=512, backend='densenet'),
-    'resnet18': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='resnet18'),
-    'resnet34': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='resnet34'),
-    'resnet50': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet50'),
-    'resnet101': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet101'),
-    'resnet152': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet152')
+    'squeezenet': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='squeezenet', n_classes=3),
+    'densenet': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=1024, deep_features_size=512, backend='densenet', n_classes=3),
+    'resnet18': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='resnet18', n_classes=3),
+    'resnet34': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='resnet34', n_classes=3),
+    'resnet50': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet50', n_classes=3),
+    'resnet101': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet101', n_classes=3),
+    'resnet152': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet152', n_classes=3)
 }
 
 
@@ -65,7 +65,7 @@ def train():
         y_cls - batch of 1D tensors of dimensionality N: N total number of classes, 
         y_cls[i, T] = 1 if class T is present in image i, 0 otherwise
     '''
-    traindata = HeadSegData(args.seg_data_path, args.trainxml, train=True, crop_size=(args.seg_crop_x, args.seg_crop_y))
+    traindata = HeadSegData(args.seg_data_path, args.train_txt, train=True)
     train_loader = DataLoader(traindata, batch_size=args.seg_batch_size, shuffle=True, num_workers=1)
 
     net, _ = build_network(None, args.seg_backend)
@@ -81,11 +81,12 @@ def train():
         if (epoch+1) % 5 == 0:
             for group in optimizer.param_groups:
                 group['lr'] *= 0.25
-
+        total_loss = 0.0
         for i, (x, y, y_cls) in enumerate(train_loader):
             x, y, y_cls = x.cuda(0), y.cuda(0).long(), y_cls.cuda(0).float()
 
             out, out_cls = net(x)
+            # print(x.shape, out.shape, out_cls.shape, y.shape, y_cls.shape)
             seg_loss = seg_criterion(out, y)
             cls_loss = cls_criterion(out_cls, y_cls)
             loss = seg_loss + args.seg_alpha * cls_loss

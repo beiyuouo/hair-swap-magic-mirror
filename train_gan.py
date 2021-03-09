@@ -29,7 +29,7 @@ def train():
     args.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     set_seed(args.seed)
 
-    traindata = HeadGanData(args.gan_data_path, args.trainxml)
+    traindata = HeadGanData(args.gan_data_path, args.train_txt)
     train_loader = DataLoader(traindata, batch_size=args.gan_batch_size, shuffle=True, num_workers=1)
 
     # print(traindata[0])
@@ -57,16 +57,23 @@ def train():
 
     criterion_D = F.binary_cross_entropy_with_logits
     criterion_G = nn.L1Loss()
-    optimizer_G = torch.optim.Adam(G.parameters(), lr=args.gan_lr, betas=(args.gan_beta, 0.999))
-    optimizer_D = torch.optim.Adam(D.parameters(), lr=args.gan_lr, betas=(args.gan_beta, 0.999))
+    optimizer_G = torch.optim.Adam(G.parameters(), lr=args.gan_glr, betas=(args.gan_beta, 0.999))
+    optimizer_D = torch.optim.Adam(D.parameters(), lr=args.gan_dlr, betas=(args.gan_beta, 0.999))
 
     real_ = 1
     fake_ = 0
 
     for epoch in range(args.gan_epochs):
+        if (epoch + 1) % 5 == 0:
+            for group in optimizer_G.param_groups:
+                group['lr'] /= 3
+
+            for group in optimizer_D.param_groups:
+                group['lr'] /= 3
+
         total_loss_G = 0.0
         total_loss_D = 0.0
-        for i, (f_img, h_img, a_img) in enumerate(train_loader):
+        for i, (a_img, f_img, h_img) in enumerate(train_loader):
             f_img, h_img, a_img = f_img.cuda(), h_img.cuda(), a_img.cuda()
             z_f, z_h = f_vae.get_z(f_img), h_vae.get_z(h_img)
             # print(z_f.shape, z_h.shape)

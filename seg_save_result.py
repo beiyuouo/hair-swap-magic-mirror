@@ -24,13 +24,13 @@ import numpy as np
 from modules.seg import PSPNet
 
 models = {
-    'squeezenet': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='squeezenet'),
-    'densenet': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=1024, deep_features_size=512, backend='densenet'),
-    'resnet18': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='resnet18'),
-    'resnet34': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='resnet34'),
-    'resnet50': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet50'),
-    'resnet101': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet101'),
-    'resnet152': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet152')
+    'squeezenet': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='squeezenet', n_classes=3),
+    'densenet': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=1024, deep_features_size=512, backend='densenet', n_classes=3),
+    'resnet18': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='resnet18', n_classes=3),
+    'resnet34': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='resnet34', n_classes=3),
+    'resnet50': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet50', n_classes=3),
+    'resnet101': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet101', n_classes=3),
+    'resnet152': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet152', n_classes=3)
 }
 
 
@@ -48,8 +48,7 @@ def build_network(snapshot, backend):
     return net, epoch
 
 
-colormap = [[0, 0, 0], [255, 0, 0], [0, 255, 0], [255, 255, 0], [128, 128, 128], [0, 0, 255], [255, 0, 255],
-            [0, 255, 255], [255, 255, 255]]
+colormap = [[0, 0, 0], [128, 128, 128], [255, 255, 255]]
 
 cm = np.array(colormap).astype('uint8')
 
@@ -88,15 +87,13 @@ def test():
         y_cls - batch of 1D tensors of dimensionality N: N total number of classes, 
         y_cls[i, T] = 1 if class T is present in image i, 0 otherwise
     '''
-    testdata = HeadSegData(args.seg_data_path, args.trainxml, train=False, crop_size=(args.seg_crop_x, args.seg_crop_y))
+    testdata = HeadSegData(args.seg_data_path, args.train_txt, train=False)
     test_loader = DataLoader(testdata, batch_size=1, shuffle=False, num_workers=1)
 
     net, _ = build_network(None, args.seg_backend)
-    net.load_state_dict(torch.load(os.path.join(args.model_path, 'seg_PSPNet_resnet34_31.pth')))
+    net.load_state_dict(torch.load(os.path.join(args.model_path, 'seg_PSPNet_resnet34_49.pth')))
     seg_criterion = nn.NLLLoss().cuda(0)
     cls_criterion = nn.BCEWithLogitsLoss().cuda(0)
-    optimizer = optim.Adam(net.parameters(), lr=1e-3)
-    # scheduler = MultiStepLR(optimizer, milestones=[int(x) for x in milestones.split(',')])
 
     print("start running...")
     net.eval()
